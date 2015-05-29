@@ -1,10 +1,9 @@
 
-For CiviCRM 4.3 and 4.2:
+For CiviCRM 4.2 -> 4.6.3:
 
 Install extension
  
-You can get Braintree Payment Processor Extension from here : https://github.com/vivekarora/braintree
-
+You can get Braintree Payment Processor Extension from here : https://github.com/senner/braintree
 
 Tasks need to be done after installing the extension.
 
@@ -12,6 +11,8 @@ Tasks need to be done after installing the extension.
 2. Go to System Settings -> Payment Processors
 3. Select Braintree from Payment processor type dropdown
 4. Fill the Merchant Id,Public Key and Private Key which will you get when you login to https://sandbox.braintreegateway.com
+5. 'subject' in the database in the civicrm_payments table is needed to be hand edited to match the 'merchant account id' if you would like to use a sub-merchant for processing
+
 
 Tasks needs to be done to run the test cases.
 

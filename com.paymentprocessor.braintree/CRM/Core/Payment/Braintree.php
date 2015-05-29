@@ -1,6 +1,7 @@
 <?php
 
-require_once '../../../lib/Braintree.php';
+//require_once '../../../lib/Braintree.php';
+require_once '/var/www/drupal-7.32/sites/all/modules/extensions/braintree/com.paymentprocessor.braintree/braintree_php/lib/Braintree.php';
 
 class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
   CONST CHARSET = 'iso-8859-1';
@@ -70,8 +71,30 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
    * @public
    */
   function doDirectPayment(&$params) {
+
+  // Let a $0 transaction pass.
+    if (empty($params['amount']) || $params['amount'] == 0) {
+      return $params;
+    }
+
+    // Get proper entry URL for returning on error.
+    $qfKey = $params['qfKey'];
+    $parsed_url = parse_url($params['entryURL']);
+    $url_path = substr($parsed_url['path'], 1);
+    $params['stripe_error_url'] = $error_url = CRM_Utils_System::url($url_path,
+      $parsed_url['query'] . "&_qf_Main_display=1&qfKey={$qfKey}", FALSE, NULL, FALSE);
+
+
     $requestArray = $this->formRequestArray($params);
-    $result = Braintree_Transaction::sale($requestArray);
+    $error_url = CRM_Utils_System::url($url_path, $parsed_url['query'] . "&_qf_Main_display=1&qfKey={$qfKey}", FALSE, NULL, FALSE);
+
+    try  {
+       $result = Braintree_Transaction::sale($requestArray);
+       }
+   
+  catch(Exception $e) {
+        CRM_Core_Error::statusBounce("Oops! Looks like there was problem.  Payment Response:  <br /> {$e->message}", $error_url); 
+   }
     
 	if ($result->success) {
 	    $params['trxn_id'] = $result->transaction->id;
@@ -79,6 +102,8 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
 	} 
 	else if ($result->transaction) {
 	    $errormsg = 'Transactions is not approved';
+	    CRM_Core_Error::statusBounce("Oops!  Looks like there was problem.  Payment Response: <br /> {$result->transaction->processorResponseCode}: {$result->message}", $error_url);
+       
 	    return self::error($result->transaction->processorResponseCode, $result->message);
 	} 
 	else {
@@ -86,9 +111,10 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
 	    foreach (($result->errors->deepAll()) as $e) {
 		$error.= $e->message;
 	     }
+  
 	    return self::error(9001, $error);
 	 }
-         
+
     return $params;
   }
 
@@ -127,6 +153,12 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
             $error[] = ts('Signature is not set for this payment processor');
         }
 
+
+        if (empty($this->_paymentProcessor['subject'])) {
+            $error[] = ts('subject/merchant account id is not set for this payment processor');
+        }
+
+
         if (!empty($error)) {
             return implode('<p>', $error);
         } else {
@@ -140,9 +172,18 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
 *   @return Array 
 */
   function formRequestArray($postArray){
+
+//return implode('<p>', $postArray['credit_card_exp_date']['M']."/".$postArray['credit_card_exp_date']['Y'] );
+
+
           $requestArray = array('amount'     => $postArray['amount'],
+			//	'cardholder_name' =>  $postArray['billing_first_name']." ".$postArray['billing_last_name'],
+				'merchantAccountId' => $this->_paymentProcessor['subject'],
+				'serviceFeeAmount' => "3.00",
+				'paymentMethodNonce' => 'nonce-from-the-client',
                                 'creditCard' => array('number'         => $postArray['credit_card_number'],
-				    		      'expirationDate' => $postArray['credit_card_exp_date']['M']."/".$postArray['credit_card_exp_date']['Y'],
+				    		      'expirationMonth' => $postArray['credit_card_exp_date']['M'],
+						       'expirationYear' => $postArray['credit_card_exp_date']['Y'],
 				                      'cvv'            => $postArray['cvv2'])
 				);
 

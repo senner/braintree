@@ -1,7 +1,5 @@
 <?php
-
-//require_once '../../../lib/Braintree.php';
-require_once '/var/www/drupal-7.32/sites/all/modules/extensions/braintree/com.paymentprocessor.braintree/braintree_php/lib/Braintree.php';
+require_once 'packages/braintree_php/lib/Braintree.php';
 
 class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
   CONST CHARSET = 'iso-8859-1';

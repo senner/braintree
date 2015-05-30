@@ -85,30 +85,24 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
 
     $requestArray = $this->formRequestArray($params);
     $error_url = CRM_Utils_System::url($url_path, $parsed_url['query'] . "&_qf_Main_display=1&qfKey={$qfKey}", FALSE, NULL, FALSE);
+    $result = Braintree_Transaction::sale($requestArray);
 
-    try  {
-       $result = Braintree_Transaction::sale($requestArray);
-       }
-   
-  catch(Exception $e) {
-        CRM_Core_Error::statusBounce("Oops! Looks like there was problem.  Payment Response:  <br /> {$e->message}", $error_url); 
-   }
-    
 	if ($result->success) {
 	    $params['trxn_id'] = $result->transaction->id;
 	    $params['gross_amount'] = $result->transaction->amount;
-	} 
+	}
 	else if ($result->transaction) {
 	    $errormsg = 'Transactions is not approved';
 	    CRM_Core_Error::statusBounce("Oops!  Looks like there was problem.  Payment Response: <br /> {$result->transaction->processorResponseCode}: {$result->message}", $error_url);
-       
+
 	    return self::error($result->transaction->processorResponseCode, $result->message);
-	} 
+	}
 	else {
 	    $error = "Validation errors:<br/>";
 	    foreach (($result->errors->deepAll()) as $e) {
 		$error.= $e->message;
 	     }
+	    CRM_Core_Error::statusBounce("Oops!  Looks like there was problem.  Payment Response: <br /> {$result->transaction->processorResponseCode}: {$result->message}", $error_url);
   
 	    return self::error(9001, $error);
 	 }
@@ -167,33 +161,32 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
 /*
 *   This function returns the request array
 *   @param  array $params assoc array of input parameters for this transaction
-*   @return Array 
+*   @return Array
 */
   function formRequestArray($postArray){
 
-//return implode('<p>', $postArray['credit_card_exp_date']['M']."/".$postArray['credit_card_exp_date']['Y'] );
-
-
+	  $serviceFee = ((floatval($postArray['amount'])) * .029) + 3.30;
           $requestArray = array('amount'     => $postArray['amount'],
-			//	'cardholder_name' =>  $postArray['billing_first_name']." ".$postArray['billing_last_name'],
 				'merchantAccountId' => $this->_paymentProcessor['subject'],
-				'serviceFeeAmount' => "3.00",
-				'paymentMethodNonce' => 'nonce-from-the-client',
+				'serviceFeeAmount' => strval($serviceFee),
                                 'creditCard' => array('number'         => $postArray['credit_card_number'],
 				    		      'expirationMonth' => $postArray['credit_card_exp_date']['M'],
 						       'expirationYear' => $postArray['credit_card_exp_date']['Y'],
-				                      'cvv'            => $postArray['cvv2'])
+				                      'cvv'            => $postArray['cvv2']),
+  				'options' => array(
+    						'submitForSettlement' => True,
+						'holdInEscrow' => True)
 				);
 
       if(array_key_exists('first_name',$postArray)){
 	  $requestArray['customer'] = array('firstName' => $postArray['first_name'],
 	    				    'lastName'  => $postArray['last_name']
 	                                   );
-           if(array_key_exists('email-5',$postArray)){ 
+           if(array_key_exists('email-5',$postArray)){
                     $requestArray['customer']['email'] = $postArray['email-5'];
            }
       }
-  
+
        if(array_key_exists('billing_first_name',$postArray)){
 	  $requestArray['billing'] = array('firstName'         => $postArray['billing_first_name'],
 					   'lastName'          => $postArray['billing_last_name'],

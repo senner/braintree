@@ -28,7 +28,7 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
     $this->_mode = $mode;
     $this->_paymentProcessor = $paymentProcessor;
     $this->_processorName = ts('Braintree');
-    $environment =  ($mode == "test") ? 'sandbox':'sandbox';
+    $environment =  ($mode == "test") ? 'sandbox': 'production';
 
     Braintree_Configuration::environment($environment);
     Braintree_Configuration::merchantId($paymentProcessor["user_name"]);
@@ -85,7 +85,12 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
 
     $requestArray = $this->formRequestArray($params);
     $error_url = CRM_Utils_System::url($url_path, $parsed_url['query'] . "&_qf_Main_display=1&qfKey={$qfKey}", FALSE, NULL, FALSE);
+   try {
     $result = Braintree_Transaction::sale($requestArray);
+   }
+     catch (Exception $e ) {
+	echo 'Caught Exception in Braintree Transaction: ', $result(), "\n";
+	}
 
 	if ($result->success) {
 	    $params['trxn_id'] = $result->transaction->id;
@@ -93,7 +98,7 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
 	}
 	else if ($result->transaction) {
 	    $errormsg = 'Transactions is not approved';
-	    //CRM_Core_Error::statusBounce("Oops!  Looks like there was problem.  Payment Response: <br /> {$result->transaction->processorResponseCode}: {$result->message}", $error_url);
+	    CRM_Core_Error::statusBounce("Oops!  Looks like there was problem.  Payment Response: <br /> {$result->transaction->processorResponseCode}: {$result->message}", $error_url);
 
 	    return self::error($result->transaction->processorResponseCode, $result->message);
 	}

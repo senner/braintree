@@ -93,7 +93,7 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
 	}
 	else if ($result->transaction) {
 	    $errormsg = 'Transactions is not approved';
-	    CRM_Core_Error::statusBounce("Oops!  Looks like there was problem.  Payment Response: <br /> {$result->transaction->processorResponseCode}: {$result->message}", $error_url);
+	    //CRM_Core_Error::statusBounce("Oops!  Looks like there was problem.  Payment Response: <br /> {$result->transaction->processorResponseCode}: {$result->message}", $error_url);
 
 	    return self::error($result->transaction->processorResponseCode, $result->message);
 	}
@@ -104,7 +104,7 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
 	     }
 	    CRM_Core_Error::statusBounce("Oops!  Looks like there was problem.  Payment Response: <br /> {$result->transaction->processorResponseCode}: {$result->message}", $error_url);
   
-	    return self::error(9001, $error);
+	    return self::error(9001, $error . $requestArray['amount']);
 	 }
 
     return $params;
@@ -166,9 +166,9 @@ class CRM_Core_Payment_Braintree extends CRM_Core_Payment {
   function formRequestArray($postArray){
 
 	  $serviceFee = ((floatval($postArray['amount'])) * .029) + 3.30;
-          $requestArray = array('amount'     => $postArray['amount'],
+          $requestArray = array('amount'     => number_format((float)$postArray['amount'], 2,'.',''),
 				'merchantAccountId' => $this->_paymentProcessor['subject'],
-				'serviceFeeAmount' => strval($serviceFee),
+				'serviceFeeAmount' => number_format((float)$serviceFee,2,'.',''),
                                 'creditCard' => array('number'         => $postArray['credit_card_number'],
 				    		      'expirationMonth' => $postArray['credit_card_exp_date']['M'],
 						       'expirationYear' => $postArray['credit_card_exp_date']['Y'],
